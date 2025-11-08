@@ -1,6 +1,7 @@
 from typing import List, Dict, Optional, Union
 from langchain_core.prompts import PromptTemplate
-from langchain.memory import ChatMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
+
 from langchain_core.prompts.chat import HumanMessage, SystemMessage, AIMessage
 
 

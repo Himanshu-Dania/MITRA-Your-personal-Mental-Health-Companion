@@ -7,6 +7,9 @@ import threading
 from queue import Queue
 from functools import partial
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)

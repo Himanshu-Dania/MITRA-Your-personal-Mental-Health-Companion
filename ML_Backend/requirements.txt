@@ -2,19 +2,26 @@ beautifulsoup4==4.13.3
 EbookLib==0.18
 fastapi==0.115.8
 Flask==3.1.0
+
 langchain==0.3.19
 langchain_chroma==0.2.2
 langchain_community==0.3.17
 langchain_core==0.3.35
+
 langchain_google_genai==2.0.9
+
+# Add google-generativeai SDK version compatible with google-genai
+google-generativeai==0.8.0
+
 langchain_huggingface==0.1.2
 networkx==3.4.2
-# numpy==2.2.3
+
 protobuf==5.29.3
 pydantic==2.10.6
 pypdf==5.3.0
 torch==2.5.1
 transformers==4.48.0
+
 uvicorn==0.34.0
 gunicorn
 gevent

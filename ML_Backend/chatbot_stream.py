@@ -1,7 +1,7 @@
 import os
 import asyncio
-
-from langchain.prompts.prompt import PromptTemplate
+from dotenv import load_dotenv
+from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains import ConversationChain
 from langchain.memory import ConversationSummaryBufferMemory
@@ -20,16 +20,18 @@ from StrategyBot.bot import predict_therapy_strategy
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 from RAG.retreive_books import query_retriever
 
+load_dotenv()
+
 
 class Chatbot:
-    def __init__(self):
-        # Store the API keys in a list and set the starting index.
-        self.api_keys = [
-            os.getenv("GOOGLE_API_KEY1"),
-            os.getenv("GOOGLE_API_KEY2"),
-            os.getenv("GOOGLE_API_KEY3"),
-        ]
-        self.api_key_index = 0
+    def __init__(self, retry_count: int = 3):
+        # Get the single API key.
+        self.api_key = os.getenv("GOOGLE_API_KEY")
+        if self.api_key is None:
+            raise ValueError("GOOGLE_API_KEY not found in environment variables.")
+        
+        # Set the retry count for API calls.
+        self.retry_count = retry_count
 
         # Set up prompt templates.
         self.system_prompt_template = SystemMessagePromptTemplate(prompt=system_prompt)
@@ -55,16 +57,10 @@ The following Therapy Strategy has been predicted to help the user. Use it to he
             ]
         )
 
-        # Build LLM instances and corresponding chains.
-        self.llm = []
-        self.chain = []
-        for key in self.api_keys:
-            if key is None:
-                raise ValueError("API key not found in environment variables.")
-            llm_instance = ChatGoogleGenerativeAI(model="gemini-1.5-pro", api_key=key)
-            self.llm.append(llm_instance)
-            # Create a new chain by piping the prompt with the LLM.
-            self.chain.append(self.prompt | llm_instance)
+        # Build LLM instance and corresponding chain.
+        self.llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", api_key=self.api_key)
+        # Create a chain by piping the prompt with the LLM.
+        self.chain = self.prompt | self.llm
 
         # Initialize chat history and add the system prompt.
         self.chat_history = ChatMessageHistory()
@@ -72,7 +68,7 @@ The following Therapy Strategy has been predicted to help the user. Use it to he
 
         # Initialize ConversationSummaryBufferMemory with the chat history.
         self.memory = ConversationSummaryBufferMemory(
-            llm=self.llm[0],
+            llm=self.llm,
             max_token_limit=1000,
             chat_memory=self.chat_history,
         )
@@ -115,18 +111,14 @@ The following Therapy Strategy has been predicted to help the user. Use it to he
 
         response = ""
 
-        # --- Round Robin with fallback attempts ---
+        # --- Retry mechanism ---
         attempts = 0
-        max_attempts = len(self.chain)
         successful = False
+        last_exception = None
 
-        # Start with the current API key index.
-        start_index = self.api_key_index
-
-        while attempts < max_attempts and not successful:
-            current_index = (start_index + attempts) % len(self.chain)
+        while attempts < self.retry_count and not successful:
             try:
-                async for token in self.chain[current_index].astream(
+                async for token in self.chain.astream(
                     {
                         "input": query,
                         "history": message_history.messages,
@@ -142,13 +134,17 @@ The following Therapy Strategy has been predicted to help the user. Use it to he
                     yield token.content  # Yield each token's content as it is generated.
                     response += token.content
                 successful = True
-                # Update to the next API key for subsequent queries.
-                self.api_key_index = (current_index + 1) % len(self.chain)
             except Exception as e:
-                print(f"Error with API key at index {current_index}: {e}")
+                last_exception = e
                 attempts += 1
-                if attempts >= max_attempts:
-                    raise Exception("All API keys failed.") from e
+                print(f"Error on attempt {attempts}/{self.retry_count}: {e}")
+                if attempts < self.retry_count:
+                    # Wait a bit before retrying (exponential backoff)
+                    await asyncio.sleep(2 ** attempts)
+                pass
+        
+        if not successful:
+            raise Exception(f"API call failed after {self.retry_count} attempts.") from last_exception
 
         # Update chat history with the user input and AI response.
         self.store[user_id][session_id].add_user_message(

@@ -3,7 +3,8 @@ import time
 import asyncio
 import sys
 import os
-
+from dotenv import load_dotenv
+load_dotenv()
 # Points to the parent directory containing EmotionBot, StrategyBot, TherapyBot
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
@@ -19,57 +20,54 @@ from TaskBot.prompts import (
     task_difficulty_prompt,
 )
 
-global load_balancer
-load_balancer = 0
-load_balancer_lock = asyncio.Lock()
-
-
 class Taskbot:
-    def __init__(self):
-
+    def __init__(self, retry_count: int = 3):
         self.create_task_prompt = create_task_prompt
         self.journey_prompt_template = journey_prompt_template
         self.task_difficulty_prompt = task_difficulty_prompt
 
-        i = 1
-        self.llms = []
-        while True:
-            key = os.getenv(f"GOOGLE_API_KEY{i}")
-            if key is None:
-                break
-            self.llms.append(
-                ChatGoogleGenerativeAI(model="gemini-1.5-flash-8b", api_key=key)
-            )
-            i += 1
+        # Get the single API key.
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if api_key is None:
+            raise ValueError("GOOGLE_API_KEY not found in environment variables.")
+        
+        # Set the retry count for API calls.
+        self.retry_count = retry_count
 
-        print(f"Initialised Taskbot with {len(self.llms)} LLM(s)\n")
+        # Create a single LLM instance.
+        self.llm = ChatGoogleGenerativeAI(model="gemini-flash-lite-latest", api_key=api_key)
+
+        print("Initialised Taskbot with 1 LLM\n")
 
     async def create_task(self, reason, tasks: List[Task]):
-        global load_balancer
         tasks_json = json.dumps(
             [task.model_dump() for task in tasks], ensure_ascii=False, indent=2
         )
         # print(f"tasks_json: {tasks_json}\nReason: {reason}")
-        attempts = len(self.llms)  # Number of retries = number of available LLMs
-        for _ in range(attempts):
-            async with load_balancer_lock:
-                assigned_index = load_balancer
-                load_balancer = (load_balancer + 1) % len(self.llms)
-
+        
+        # Retry mechanism
+        attempts = 0
+        last_exception = None
+        
+        while attempts < self.retry_count:
             try:
-                llm_chain = self.create_task_prompt | self.llms[assigned_index]
+                llm_chain = self.create_task_prompt | self.llm
                 result = llm_chain.invoke(
                     input={"reason": reason, "tasks_json": tasks_json}
                 )
                 # print(f"Result: {result}")
                 return result.content.strip()
             except Exception as e:
-                print(f"LLM index {assigned_index} failed: {str(e)}")
-
-        return "Error: All LLMs failed to process the request."
+                last_exception = e
+                attempts += 1
+                print(f"Error on attempt {attempts}/{self.retry_count}: {str(e)}")
+                if attempts < self.retry_count:
+                    # Wait a bit before retrying (exponential backoff)
+                    await asyncio.sleep(2 ** attempts)
+        
+        raise Exception(f"API call failed after {self.retry_count} attempts.") from last_exception
 
     async def process_task_into_journey(self, new_task: Task, journeys: List[Journey]):
-        global load_balancer
         tasks_json = json.dumps(new_task.model_dump(), ensure_ascii=False, indent=2)
         journeys_json = json.dumps(
             [j.model_dump() for j in journeys], ensure_ascii=False, indent=2
@@ -81,38 +79,48 @@ class Taskbot:
         # print("journeys: ")
         # print(journeys)
 
-        attempts = len(self.llms)  # Number of retries = number of available LLMs
-        for _ in range(attempts):
-            async with load_balancer_lock:
-                assigned_index = load_balancer
-                load_balancer = (load_balancer + 1) % len(self.llms)
-
+        # Retry mechanism
+        attempts = 0
+        last_exception = None
+        
+        while attempts < self.retry_count:
             try:
-                llm_chain = self.journey_prompt_template | self.llms[assigned_index]
+                llm_chain = self.journey_prompt_template | self.llm
                 result = llm_chain.invoke(
                     input={"new_task": tasks_json, "journeys_json": journeys_json}
                 )
                 return result.content.strip()
             except Exception as e:
-                print(f"LLM index {assigned_index} failed: {str(e)}")
-        return "Error: Unable to process journey update."
+                last_exception = e
+                attempts += 1
+                print(f"Error on attempt {attempts}/{self.retry_count}: {str(e)}")
+                if attempts < self.retry_count:
+                    # Wait a bit before retrying (exponential backoff)
+                    await asyncio.sleep(2 ** attempts)
+        
+        raise Exception(f"API call failed after {self.retry_count} attempts.") from last_exception
 
     async def change_task_difficulty(self, reason, task: Task):
-        global load_balancer
         task_json = json.dumps(task.model_dump(), ensure_ascii=False, indent=2)
-        attempts = len(self.llms)  # Number of retries = number of available LLMs
-        for _ in range(attempts):
-            async with load_balancer_lock:
-                assigned_index = load_balancer
-                load_balancer = (load_balancer + 1) % len(self.llms)
-
+        
+        # Retry mechanism
+        attempts = 0
+        last_exception = None
+        
+        while attempts < self.retry_count:
             try:
-                llm_chain = self.task_difficulty_prompt | self.llms[assigned_index]
+                llm_chain = self.task_difficulty_prompt | self.llm
                 result = llm_chain.invoke(input={"reason": reason, "task": task_json})
                 return result.content.strip()
             except Exception as e:
-                print(f"LLM index {assigned_index} failed: {str(e)}")
-        return "Error: Unable to change task difficulty."
+                last_exception = e
+                attempts += 1
+                print(f"Error on attempt {attempts}/{self.retry_count}: {str(e)}")
+                if attempts < self.retry_count:
+                    # Wait a bit before retrying (exponential backoff)
+                    await asyncio.sleep(2 ** attempts)
+        
+        raise Exception(f"API call failed after {self.retry_count} attempts.") from last_exception
 
 
 async def __main__():

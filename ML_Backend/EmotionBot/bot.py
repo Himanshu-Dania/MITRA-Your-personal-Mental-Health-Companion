@@ -32,10 +32,22 @@ async def emotion_detection(query):
     """
     if use_local_model:
         results = emotion_model(query, top_k=3)
+        final_result = []
+        for result in results:
+            label = result["label"]
+            probability = result["score"]
+            if probability > 0.5:
+                final_result.append(label)
+        return final_result
     else:
         results = hf_client.text_classification(query, top_k=3)
-
-    return results
+        final_result = []
+        for result in results:
+            label = result["label"]
+            probability = result["score"]
+            if probability >= 0.4:
+                final_result.append(label)
+        return final_result
 
 
 async def __main__():

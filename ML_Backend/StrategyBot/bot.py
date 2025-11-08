@@ -10,8 +10,10 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from StrategyBot.utils import format_conversation, format_messages
 import re
+from dotenv import load_dotenv
+load_dotenv()
 
-api_key = os.getenv("GOOGLE_API_KEY1")
+api_key = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=api_key)
 # print("API Key set")
 # Create the model
@@ -24,7 +26,7 @@ generation_config = {
 }
 
 model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash-8b",
+    model_name="gemini-flash-lite-latest",
     generation_config=generation_config,
 )
 # print("model set")
@@ -215,8 +217,8 @@ async def __main__():
 
     try:
         (reasoning, strategy) = await predict_therapy_strategy(history)
-        # print(reasoning)
-        # print(strategy)
+        print(reasoning)
+        print(strategy)
     except Exception as e:
         print(f"Error: {str(e)}")
 
