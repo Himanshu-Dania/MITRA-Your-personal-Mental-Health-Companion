@@ -1,137 +1,95 @@
-# MITRA: Mentall Illness Therapy and Reconnection Assistant
+# MITRA – A Research-Backed Mental Health Companion
 
-Escape Reality, Embrace Growth
-We’re developing an Android app that offers a safe haven for users to connect with others who can relate to their struggles, share wisdom, and provide support. Beyond this, the app features a personalized, evolving companion designed to help users grow into the best version of themselves. This chatbot provides non-judgmental listening and crafts customized growth journeys tailored to each user's unique needs because no one’s journey is the same.
-Features:
+**MITRA** is a holistic mental health app designed to support users through AI-guided therapy, personalized task assignment, secure journaling, emotion-aware dialogue, and social connection in a virtual world.
+<img width="619" height="574" alt="image" src="https://github.com/user-attachments/assets/73ced812-4782-4c0e-84d2-b52dd55401ff" />
 
-1. Personalized Companion (Your Pet):
-Interactive and Gamified: A chatbot that talks, listens, and speaks to you like a virtual companion.
-Trained to be therapeutic: The chatbot utilises data proven by researchers to help the users.
-Evolving Intelligence: Learns from your interactions, adapts to your progress, and refines its approach to suit you better over time.
-Gamification: Engages users by introducing the concept of a “pet” whose well-being aligns with your growth. Caring for the pet motivates users to stay consistent. The pet evolves as the user grows.
-Read dreams: The user can read their pet’s dreams with an item, it’s possible that the pet’s gratitude can make them feel good about themselves.
-2. Dynamic Task Creation:
-Tailored Growth Paths: Tasks are dynamically generated and structured like a skill tree, starting with simple activities and evolving based on your ease and progress.
-Personalized Journeys: No two users will have the same experience as tasks adapt to individual needs, ensuring a unique growth trajectory.
-Progressive Development: Tasks range from building habits to challenging milestones, encouraging steady growth without overwhelming users.
-Uncomplicate Transformations: See those big new years’ resolutions that seem like magic? Turn them into reality by breaking them into small actionable goals
-     3. Virtual World:
-Connect with Like-Minded People: Enter a virtual reality space to meet individuals who resonate with your experiences.
-Build Meaningful Connections: Hang out, explore, and grow alongside others in a supportive and dynamic environment.
-Shared Growth: Witness and celebrate your friends’ journeys as you evolve together.
-     4. Emotion Processing with Notes:
-Self-Reflection Hub: Take notes about your emotions, daily progress, and reflections.
-Memory Aid: Use notes as a reference to track your growth and remind yourself of key lessons.
-Integrated with the Chatbot: The AI companion helps you process your emotions by offering prompts, insights, and reflections based on your entries.
+---
 
-Vulnerabilities : 
-Personalized Support:
- Suggest content, exercises, or support groups relevant to individual user profiles.
-Use AI to analyze user inputs (like mood tracking or journaling) to provide actionable feedback or suggestions.
-Crisis Support
-Enable users to create a plan of action for when they feel overwhelmed or at risk.
-Progress Tracking and Analytics
-Tools to log and visualize mood patterns, sleep, physical activity, and journaling progress.
-Help users set achievable mental health goals and send regular reminders for check-ins.
+## Key Features
+
+### AI Therapy Companion
+- Responds to emotional cues using NLP emotion classification & strategy selection.
+- Offers research-backed therapy advice even when human therapists are unavailable.
+- Stores session history for continuity in conversations.
+<img width="346" height="789" alt="Screenshot 2025-02-19 022545" src="https://github.com/user-attachments/assets/394ff6ca-51af-4d50-9123-a92aa5561178" />
+<img width="350" height="786" alt="Screenshot 2025-02-19 024621" src="https://github.com/user-attachments/assets/ab129a3d-db9e-4d4f-9cce-a5f699fe3dbd" />
+
+### Journaling & Mood Tracker
+- Daily mood tracking with emoji-based input.
+- Calendar-based journaling to reflect on thoughts.
+- Suggestions by therapists are dynamically integrated.
+<img width="247" height="556" alt="image" src="https://github.com/user-attachments/assets/ba114978-b268-4827-b844-6366bd0cc1a9" />
+<img width="269" height="585" alt="image" src="https://github.com/user-attachments/assets/f04e0260-7f32-402f-982c-48e77a2482b7" />
+
+### Personalized Task System
+- Tasks are created based on conversations dynamically.
+- Metrics-based, JSON-driven task tracking (e.g., “Talk to 5 people”).
+- Completion and feedback loop integrated via Gemini API.
+<img width="390" height="452" alt="Screenshot 2025-02-19 023946" src="https://github.com/user-attachments/assets/951acf83-7f4c-4a44-bc2a-407bda09641b" />
 
 
-Enhanced Peer Support
-Subgroups based on specific challenges (e.g., postpartum depression, workplace stress).
-Pair users with peers or mentors who share similar experiences or backgrounds.
-Allow users to connect without revealing their identity.
+### Virtual World for Peer Support
+- Allows users to interact with others facing similar mental health challenges.
+- Cosine similarity is used to match users with similar emotional patterns.
+
+### Therapist Booking (Based on Condition)
+- Users are matched to therapists depending on detected emotional issues.(memory embeddings)
+
+---
+
+## Architecture Highlights
+
+- **Gemini API**: Manages task CRUD, session memory updates, and final response generation.
+- **RAG Pipeline**: Uses FAISS/Chroma DBs with fine-tuned DialogGPT for therapy responses.
+- **Emotion & Strategy Modules**: Detect mental state and select coping mechanisms accordingly.
+- **Secure Logging**: All entries are encrypted; no data leaves user’s device without consent.
+<img width="1920" height="1080" alt="Soft Sand Minimalist Modern Thesis Defense Presentation" src="https://github.com/user-attachments/assets/871551d6-197d-4084-aabe-c0d6927aac0a" />
 
 
-## Project Structure
+---
 
-```
-├── Backend/             # Node.js/Express backend
-│   ├── src/
-│   │   ├── config/      # Database configuration
-│   │   ├── controllers/ # Request handlers
-│   │   ├── middleware/  # Authentication and upload middleware
-│   │   ├── models/      # MongoDB schema models
-│   │   ├── routes/      # API routes
-│   │   └── utils/       # Utility functions
-│   ├── server.js        # Main server file
-│   └── package.json     # Backend dependencies
-│
-└── frontend/            # React/TypeScript frontend
-    ├── public/          # Static files
-    ├── src/
-    │   ├── components/  # Reusable UI components
-    │   ├── pages/       # Page components
-    │   ├── types/       # TypeScript type definitions
-    │   ├── App.tsx      # Main app component
-    │   └── index.tsx    # Entry point
-    └── package.json     # Frontend dependencies
-```
+## Research Integration
 
-## Prerequisites
+- Emotion models trained on ESC/ESConv, mental health FAQs, and therapy transcripts.
+- Task therapy design is based on psychological behavior activation techniques.
+- Strategy selection is proven to make llm more empathetic and better at therapy.
+  
 
-- Node.js (v14+)
-- MongoDB
-- npm or yarn
+---
 
-## Setup and Installation
+## App Walkthrough
 
-### Backend
+- **Home**: Welcome screen, mood tracker, journal access, AI companion.
+- **Journeys**: Task list based on wellness goals.
+- **Therapy Bot**: Chat-based interaction with emotionally intelligent responses.
+- **Virtual World**: Safe space for social exploration and peer bonding.
+- **Profile**: Mood history visualization & appointment dashboard.
 
-1. Navigate to the backend directory:
-   ```
-   cd Backend
-   ```
+---
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+## Security & Privacy
 
-3. Create a `.env` file with the following variables:
-   ```
-   PORT=5000
-   MONGO_URI=mongodb://localhost:27017/therapy_app
-   JWT_SECRET=your_jwt_secret_key
-   NODE_ENV=development
-   ```
+- End-to-end encryption for journals and chat logs.
+- Session-based memory retention with optional user opt-in.
+- Therapist and group-matching uses anonymized similarity scores.
 
-4. Start the development server:
-   ```
-   npm run dev
-   ```
+---
 
-### Frontend
+References:
 
-1. Navigate to the frontend directory:
-   ```
-   cd frontend
-   ```
+Dinesh, N. P., Gayathri, N. R., & Pugazhini, N. R. (2024). Interactive AI chatbot for mental illness. International Journal of Advanced Research in Science Communication and Technology, 68–75. https://doi.org/10.48175/ijarsct-17811
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+Farzan, M., Ebrahimi, H., Pourali, M., & Sabeti, F. (2024). Artificial Intelligence-Powered Cognitive Behavioral Therapy Chatbots, A Systematic Review. Iranian Journal of Psychiatry. https://doi.org/10.18502/ijps.v20i1.17395
 
-3. Start the development server:
-   ```
-   npm start
-   ```
+Liu, J. M., Li, D., Cao, H., Ren, T., Liao, Z., & Wu, J. (2023). ChatCounselor: a large language models for mental health support. arXiv (Cornell University). https://doi.org/10.48550/arxiv.2309.15461
 
-4. Open your browser and go to `http://localhost:3000`
+Liu, S., Zheng, C., Demasi, O., Sabour, S., Li, Y., Yu, Z., Jiang, Y., & Huang, M. (2021). Towards emotional support dialog systems. arXiv (Cornell University). https://doi.org/10.48550/arxiv.2106.01144
 
-## API Endpoints
+Rani, S., Ahmed, K., & Subramani, S. (2024). From Posts to Knowledge: Annotating a Pandemic-Era Reddit dataset to navigate mental health narratives. Applied Sciences, 14(4), 1547. https://doi.org/10.3390/app14041547
 
-### Users
+Yu, H. Q., & McGuinness, S. (2024). An experimental study of integrating fine-tuned large language models and prompts for enhancing mental health support chatbot system. Journal of Medical Artificial Intelligence, 7, 16. https://doi.org/10.21037/jmai-23-136
 
-- `POST /api/users` - Register a new user
-- `POST /api/users/login` - Login user
-- `GET /api/users/profile` - Get user profile (protected)
 
-### Therapists
-
-- `POST /api/therapists` - Register a new therapist
-- `POST /api/therapists/login` - Login therapist
-- `GET /api/therapists/profile` - Get therapist profile (protected)
-
-## License
-
-MIT
+Links:
+https://www.canva.com/design/DAGfYGbWuN4/ttMchRrayJFEhY0xV-X1NA/edit?utm_content=DAGfYGbWuN4&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+https://www.canva.com/design/DAGavywR9Qo/C-O96TEGzD_y5668AaoXlA/edit?utm_content=DAGavywR9Qo&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
