@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<!-- saved from url=(0022)http://127.0.0.1:5000/ -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Therapy Companion</title>
+
+        <script src="./BPDExample_files/saved_resource"></script>
+
+        <!-- Cute Rounded Font -->
+        <link href="./BPDExample_files/css2" rel="stylesheet">
+
+        <!-- Markdown Renderer -->
+        <script src="./BPDExample_files/marked.min.js.download"></script>
+
+        <style>
+            body {
+                font-family: "Quicksand", sans-serif;
+            }
+
+            #chat-container::-webkit-scrollbar {
+                width: 8px;
+            }
+            #chat-container::-webkit-scrollbar-thumb {
+                background-color: rgba(0, 0, 0, 0.2);
+                border-radius: 4px;
+            }
+
+            .pet-animation {
+                animation: moveDog 4s ease-in-out infinite;
+            }
+            @keyframes moveDog {
+                0% { transform: translateY(0); }
+                50% { transform: translateY(-5px); }
+                100% { transform: translateY(0); }
+            }
+
+            /* Remove scrollbar for chat container (optional, still scrolls) */
+            .no-scrollbar::-webkit-scrollbar { display: none; }
+            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        </style>
+    <style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width: 640px){.container{max-width:640px}}@media (min-width: 768px){.container{max-width:768px}}@media (min-width: 1024px){.container{max-width:1024px}}@media (min-width: 1280px){.container{max-width:1280px}}@media (min-width: 1536px){.container{max-width:1536px}}.mx-auto{margin-left:auto;margin-right:auto}.mb-6{margin-bottom:1.5rem}.ml-2{margin-left:0.5rem}.mt-4{margin-top:1rem}.ml-auto{margin-left:auto}.mr-auto{margin-right:auto}.flex{display:flex}.h-screen{height:100vh}.max-h-32{max-height:8rem}.min-h-screen{min-height:100vh}.w-full{width:100%}.max-w-2xl{max-width:42rem}.max-w-\[80\%\]{max-width:80%}.flex-1{flex:1 1 0%}.flex-grow{flex-grow:1}.resize-none{resize:none}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-center{justify-content:center}.gap-2{gap:0.5rem}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.overflow-y-auto{overflow-y:auto}.break-words{overflow-wrap:break-word}.rounded-lg{border-radius:0.5rem}.border{border-width:1px}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.bg-\[\#C66408\]{--tw-bg-opacity:1;background-color:rgb(198 100 8 / var(--tw-bg-opacity, 1))}.bg-gray-50{--tw-bg-opacity:1;background-color:rgb(249 250 251 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-\[\#FFEEDB\]{--tw-bg-opacity:1;background-color:rgb(255 238 219 / var(--tw-bg-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.p-2{padding:0.5rem}.p-4{padding:1rem}.px-4{padding-left:1rem;padding-right:1rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.pb-4{padding-bottom:1rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.font-bold{font-weight:700}.text-\[\#C66408\]{--tw-text-opacity:1;color:rgb(198 100 8 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.shadow{--tw-shadow:0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.hover\:bg-\[\#B35C07\]:hover{--tw-bg-opacity:1;background-color:rgb(179 92 7 / var(--tw-bg-opacity, 1))}.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}.focus\:ring-2:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}.focus\:ring-\[\#C66408\]:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(198 100 8 / var(--tw-ring-opacity, 1))}.disabled\:bg-gray-400:disabled{--tw-bg-opacity:1;background-color:rgb(156 163 175 / var(--tw-bg-opacity, 1))}</style></head>
+
+    <body class="bg-gray-50 min-h-screen flex flex-col vsc-initialized">
+        <div class="container mx-auto p-4 max-w-2xl flex flex-col h-screen">
+
+            <!-- Header -->
+            <div class="flex items-center justify-center mb-6">
+                <h1 class="text-3xl font-bold text-[#C66408]">Therapy Companion</h1>
+                <span class="text-4xl pet-animation ml-2">🐶</span>
+            </div>
+
+            <!-- Chat Card -->
+            <div class="bg-white rounded-lg shadow-lg p-4 flex flex-col flex-grow">
+                <div id="chat-container" class="overflow-y-auto flex-grow space-y-4 no-scrollbar pb-4">
+                <div class="
+                    p-4 rounded-lg text-sm break-words
+                    bg-[#FFEEDB] ml-auto
+                    max-w-[80%]
+                "><p>I think I might have Borderline Personality Disorder. Can you help me figure it out?</p>
+</div><div class="p-4 rounded-lg text-sm bg-gray-100 mr-auto max-w-[80%] break-words"><p>It takes a lot of courage to look closely at what you're experiencing and ask these kinds of questions about yourself. I hear that you are feeling confused and are seeking clarity about something very significant, and I want to acknowledge that.</p>
+<p>While I am here to support you, it's really important to know that I am an AI and not a licensed mental health professional, so I cannot give you a diagnosis. Only a qualified clinician—like a psychiatrist or psychologist—can accurately assess and diagnose a condition like Borderline Personality Disorder (BPD).</p>
+<p>To help me understand what is bringing this concern to the forefront for you right now, would you be willing to share a little bit about what specific feelings or situations have made you think this might be what you are experiencing?</p>
+<p>Understanding what you are going through is the first step, and if you're open to it, I can certainly help you think about the next best steps to take for a proper evaluation.</p>
+</div></div>
+            </div>
+            
+            <!-- Chat Form -->
+            <form id="chat-form" class="mt-4 w-full flex gap-2 p-4 bg-white shadow rounded-lg">
+            <textarea id="message-input" rows="1" class="flex-1 p-2 border border-gray-300 rounded-lg
+                focus:outline-none focus:ring-2 focus:ring-[#C66408]
+                resize-none overflow-y-auto max-h-32" placeholder="Type your message..." style="height: auto;"></textarea>
+                
+                <button type="submit" class="px-4 py-2 bg-[#C66408] text-white rounded-lg hover:bg-[#B35C07] disabled:bg-gray-400">
+                Send
+                </button>
+            </form>
+        </div>
+
+        <script>
+            const sessionId = crypto.randomUUID();
+            const messageInput = document.getElementById("message-input");
+            const chatForm = document.getElementById("chat-form");
+            const chatContainer = document.getElementById("chat-container");
+
+            let isLoading = false;
+
+            // Auto expanding textarea
+            messageInput.addEventListener("input", () => {
+                messageInput.style.height = "auto";
+                messageInput.style.height =
+                    Math.min(messageInput.scrollHeight, 128) + "px";
+            });
+
+            // Insert message
+            function appendMessage(content, isUser) {
+                const messageDiv = document.createElement("div");
+
+                messageDiv.className = `
+                    p-4 rounded-lg text-sm break-words
+                    ${isUser ? "bg-[#FFEEDB] ml-auto" : "bg-gray-100 mr-auto"}
+                    max-w-[80%]
+                `;
+
+                messageDiv.innerHTML = marked.parse(content);
+                chatContainer.appendChild(messageDiv);
+
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            // Handle message submit
+            async function handleSubmit(e) {
+                e.preventDefault();
+                if (isLoading || !messageInput.value.trim()) return;
+
+                const message = messageInput.value.trim();
+                messageInput.value = "";
+                messageInput.style.height = "auto";
+
+                isLoading = true;
+
+                appendMessage(message, true);
+
+                try {
+                    const response = await fetch("/chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            message,
+                            sessionId,
+                            userId: "user-1",
+                        }),
+                    });
+
+                    if (!response.ok) throw new Error("Network error");
+
+                    const messageDiv = document.createElement("div");
+                    messageDiv.className =
+                        "p-4 rounded-lg text-sm bg-gray-100 mr-auto max-w-[80%] break-words";
+                    chatContainer.appendChild(messageDiv);
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let currentMessage = "";
+
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split("\n");
+
+                        for (const line of lines) {
+                            if (line.startsWith("data: ")) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    if (data.content) {
+                                        currentMessage += data.content;
+                                        messageDiv.innerHTML =
+                                            marked.parse(currentMessage);
+
+                                        chatContainer.scrollTop =
+                                            chatContainer.scrollHeight;
+                                    }
+                                } catch (e) {
+                                    console.error("Parse error:", e);
+                                }
+                            }
+                        }
+                    }
+                } catch {
+                    appendMessage("An error occurred while sending your message.", false);
+                } finally {
+                    isLoading = false;
+                }
+            }
+
+            chatForm.addEventListener("submit", handleSubmit);
+        </script>
+    
+</body></html>

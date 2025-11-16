@@ -1,93 +1,120 @@
-import sys
-import os
-import uvicorn
-
-# Points to the parent directory containing EmotionBot, StrategyBot, TherapyBot
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, BASE_DIR)
-
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
-import asyncio
-import torch
-from transformers import pipeline
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.schema import HumanMessage
+from flask import Flask, render_template, Response, request
 import json
-from TherapyBot.chatbot_stream import Chatbot
+# from chatbot_stream import Chatbot
+from agent_stream import TherapyAgent
+import os
+import asyncio
+import threading
+from queue import Queue
+from functools import partial
+import logging
+from dotenv import load_dotenv
 
-app = FastAPI()
+load_dotenv()
 
-# Instantiate chatbot instance globally
-chatbot = Chatbot()
+app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Global variable to store the last user message
-chat_store = None
+# Create a single instance of Chatbot
+chatbot = TherapyAgent(task_debug=True, agent_debug=True)
+
+# Create a single event loop for async operations
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
 
-@app.get("/")
-async def home():
-    """Serve the static HTML file"""
-    base_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of app.py
-    file_path = os.path.join(
-        base_dir, "static", "chatbot_stream.html"
-    )  # Construct absolute path
-
+def run_in_loop(coroutine):
+    """Run a coroutine in the main event loop"""
+    future = asyncio.run_coroutine_threadsafe(coroutine, loop)
     try:
-        with open(file_path, "r") as f:
-            return HTMLResponse(content=f.read())
-    except FileNotFoundError:
-        return HTMLResponse(
-            content="Error: chatbot_stream.html not found", status_code=500
+        return future.result()
+    except Exception as e:
+        logger.error(f"Error running coroutine: {e}", exc_info=True)
+        raise
+
+
+async def process_chat_async(message, session_id, user_id, queue):
+    """Process chat messages asynchronously"""
+    try:
+        async for chunk in chatbot.chat(message, session_id, user_id):
+            await asyncio.sleep(0)  # Give other tasks a chance to run
+            queue.put(chunk)
+    except Exception as e:
+        logger.error(f"Error in chat processing: {e}", exc_info=True)
+        queue.put({"error": str(e)})
+    finally:
+        queue.put(None)  # Signal completion
+
+
+def generate_response(message, session_id, user_id):
+    queue = Queue()
+
+    # Start process_chat_async in a separate thread to fill the queue concurrently.
+    threading.Thread(
+        target=run_in_loop,
+        args=(process_chat_async(message, session_id, user_id, queue),),
+        daemon=True,
+    ).start()
+
+    while True:
+        chunk = queue.get()
+        if chunk is None:  # Completion signal
+            break
+        if isinstance(chunk, dict) and "error" in chunk:
+            yield f"data: {json.dumps({'error': chunk['error']})}\n\n"
+            break
+        yield f"data: {json.dumps({'content': chunk})}\n\n"
+
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    try:
+        data = request.json
+        message = data.get("message")
+        session_id = data.get("sessionId") or 0
+        user_id = data.get("userId") or 0
+
+        if not message or not session_id:
+            return {"error": "Missing required fields"}, 400
+
+        return Response(
+            generate_response(message, session_id, user_id),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",  # Disable nginx buffering if you're using it
+            },
         )
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {e}", exc_info=True)
+        return {"error": str(e)}, 500
 
 
-@app.post("/chat")
-async def chat(request: Request):
-    """Handles the user message submission."""
-    global chat_store  # Use global variable
-    data = await request.json()
-    user_message = data.get("message", "")
-    print(f"Received message: {user_message}")
-
-    # Store the user message in the global variable
-    chat_store = user_message
-
-    return {"message": "Message received", "status": "OK"}
-
-
-@app.get("/chat-stream")
-async def chat_stream():
-    """Streams the bot's response for the user's message."""
-    if chat_store is None:
-        return {"error": "No message received yet"}
-
-    print(f"Last message: {chat_store}")
-
-    async def stream_response():
-        try:
-            response = ""
-            # Start streaming the response from chatbot.gemini using the chat_store message
-            async for token in chatbot.gemini(chat_store):
-                # If the token is different from the last one (to avoid repetition)
-                if token != response:
-                    # Append the new token to the response
-                    response = token
-                    yield f"data: {response}\n\n"
-
-            # Optionally send a signal to the frontend that the stream has ended
-            yield "data: [END]\n\n"  # End signal to stop stream logic, not shown in frontend
-
-        except Exception as e:
-            yield f"data: Error occurred: {str(e)}\n\n"
-
-    return StreamingResponse(stream_response(), media_type="text/event-stream")
-
-
-def main():
-    """Run the FastAPI app on the local network"""
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+def run_event_loop():
+    """Run the event loop in a separate thread"""
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
 
 
 if __name__ == "__main__":
-    main()
+    # Start the event loop in a separate thread
+    thread = threading.Thread(target=run_event_loop, daemon=True)
+    thread.start()
+
+    try:
+        port = int(os.environ.get("PORT", 5000))
+        # Use threaded=True to handle multiple requests simultaneously
+        app.run(
+            host="0.0.0.0", port=port, debug=True, use_reloader=False, threaded=True
+        )
+    finally:
+        # Clean up when the application exits
+        loop.call_soon_threadsafe(loop.stop)
+        thread.join()
+        loop.close()

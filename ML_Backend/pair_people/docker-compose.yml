@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Chroma DB service
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - ALLOW_RESET=true
+    networks:
+      - mitra_network
+
+  # User grouping API service
+  user-grouping-api:
+    build:
+      context: ../..
+      dockerfile: ML_Backend/RAG/Dockerfile
+    ports:
+      - "8080:8000"
+    volumes:
+      - ../../User_Embeddings:/app/User_Embeddings
+    environment:
+      - EMBEDDING_DIR=/app/User_Embeddings
+      - COLLECTION_NAME=interests
+      - PORT=8000
+      - CACHE_TTL_SECONDS=300
+      - MONGO_URI=mongodb://mongo:27017/therapy_app
+    depends_on:
+      - chromadb
+      - mongo
+    networks:
+      - mitra_network
+
+  # MongoDB service for user data
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - mitra_network
+
+volumes:
+  chroma_data:
+  mongo_data:
+
+networks:
+  mitra_network:
+    driver: bridge 

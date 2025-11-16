@@ -9,7 +9,7 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.schema import HumanMessage
+from langchain.messages import HumanMessage
 import json
 from typing import List
 from TaskBot.utils import Task, Journey, JourneySchema, json_task
@@ -31,7 +31,7 @@ class Taskbot:
         if api_key is None:
             raise ValueError("GOOGLE_API_KEY not found in environment variables.")
         
-        # Set the retry count for API calls.
+        # Set the sretry count for API calls.
         self.retry_count = retry_count
 
         # Create a single LLM instance.

@@ -1,8 +1,8 @@
 from typing import List, Dict, Optional, Union
 from langchain_core.prompts import PromptTemplate
 from langchain_community.chat_message_histories import ChatMessageHistory
-
-from langchain_core.prompts.chat import HumanMessage, SystemMessage, AIMessage
+import re
+from langchain.messages import HumanMessage, SystemMessage, AIMessage
 
 
 def format_conversation(messages: List[Dict]) -> str:
@@ -68,10 +68,6 @@ def format_conversation(messages: List[Dict]) -> str:
 
     # Join all messages with newlines
     return "\n".join(formatted_messages)
-
-
-from langchain.schema import HumanMessage, AIMessage, SystemMessage
-import re
 
 
 def extract_strategies(system_message):
