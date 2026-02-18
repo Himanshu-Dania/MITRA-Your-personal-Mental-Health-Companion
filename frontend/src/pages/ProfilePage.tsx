@@ -1,181 +1,173 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Header from '../components/Header';
-import axios from 'axios';
-import { User, Therapist } from '../types';
-import ProtectedRoute from '../components/ProtectedRoute';
+import React, { useEffect, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import Header from "../components/Header";
+import axios from "axios";
+import { User, Therapist } from "../types";
+import ProtectedRoute from "../components/ProtectedRoute";
 
 const ProfileContent: React.FC = () => {
-  const navigate = useNavigate();
-  const [profile, setProfile] = useState<User | Therapist | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+    const navigate = useNavigate();
+    const [profile, setProfile] = useState<User | Therapist | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      const userString = localStorage.getItem('user');
-      
-      if (!userString) {
-        setError('You must be logged in to view this page');
-        return;
-      }
-      
-      try {
-        const userData = JSON.parse(userString);
-        const token = userData.token;
-        const userType = userData.userType;
-        
-        if (!token) {
-          setError('Authentication token not found. Please log in again.');
-          localStorage.removeItem('user');
-          return;
-        }
+    useEffect(() => {
+        const fetchProfile = async () => {
+            const raw = localStorage.getItem("user");
+            if (!raw) {
+                setError("Not logged in");
+                setLoading(false);
+                return;
+            }
+            try {
+                const userData = JSON.parse(raw);
+                if (!userData.token) {
+                    setError("Session expired. Please log in.");
+                    setLoading(false);
+                    return;
+                }
+                const endpoint =
+                    userData.userType === "user"
+                        ? "http://localhost:3000/api/users/profile"
+                        : "http://localhost:3000/api/therapists/profile";
+                const { data } = await axios.get(endpoint, {
+                    headers: { Authorization: `Bearer ${userData.token}` },
+                });
+                setProfile(data);
+            } catch (err: any) {
+                if (err.response?.status === 401) {
+                    localStorage.removeItem("user");
+                    navigate("/login");
+                } else {
+                    setError(
+                        err.response?.data?.message ||
+                            err.message ||
+                            "Could not load profile.",
+                    );
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchProfile();
+    }, [navigate]);
 
-        console.log('Fetching profile with token:', token.substring(0, 15) + '...');
-
-        try {
-          const endpoint = userType === 'user' 
-            ? 'http://localhost:3000/api/users/profile' 
-            : 'http://localhost:3000/api/therapists/profile';
-          
-          const { data } = await axios.get(endpoint, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          
-          console.log('Profile data fetched successfully:', data);
-          setProfile(data);
-        } catch (requestError: any) {
-          console.error('Error fetching profile data:', requestError);
-          
-          // Check if this is an authentication error
-          if (requestError.response?.status === 401) {
-            setError('Authentication failed. Your session may have expired. Please log in again.');
-            localStorage.removeItem('user');
-            setTimeout(() => {
-              navigate('/login');
-            }, 1500);
-          } else {
-            setError(`Failed to load profile: ${requestError.response?.data?.message || requestError.message}`);
-          }
-        }
-      } catch (parseError) {
-        console.error('Error parsing user data:', parseError);
-        setError('Invalid user data. Please log in again.');
-        localStorage.removeItem('user');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [navigate]);
-
-  if (loading) {
-    return (
-      <div>
-        <Header />
-        <main className="container mx-auto my-8 text-center">
-          <p>Loading profile...</p>
-        </main>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div>
-        <Header />
-        <main className="container mx-auto my-8 text-center">
-          <p className="text-red-500">{error}</p>
-          {error.includes('expired') && <p>Redirecting to login...</p>}
-        </main>
-      </div>
-    );
-  }
-
-  // Check if the profile is a user or therapist
-  const isUser = profile && 'username' in profile;
-
-  return (
-    <div>
-      <Header />
-      <main className="container mx-auto my-8">
-        <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
-          <h1 className="text-xl font-bold mb-6 text-center">
-            {isUser ? 'User Profile' : 'Therapist Profile'}
-          </h1>
-
-          {isUser ? (
-            // User profile
-            <div>
-              <div className="mb-4">
-                <p className="font-bold">Username:</p>
-                <p>{(profile as User).username}</p>
-              </div>
-              <div className="mb-4">
-                <p className="font-bold">Email:</p>
-                <p>{profile?.email}</p>
-              </div>
-              <div className="mb-4">
-                <p className="font-bold">Interests:</p>
-                {(profile as User).interests && (profile as User).interests.length > 0 ? (
-                  <ul className="list-disc pl-5">
-                    {(profile as User).interests.map((interest, index) => (
-                      <li key={index}>{interest}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>No interests specified</p>
-                )}
-              </div>
-            </div>
-          ) : (
-            // Therapist profile
-            <div>
-              <div className="mb-4">
-                <p className="font-bold">Name:</p>
-                <p>{(profile as Therapist).name}</p>
-              </div>
-              <div className="mb-4">
-                <p className="font-bold">Email:</p>
-                <p>{profile?.email}</p>
-              </div>
-              <div className="mb-4">
-                <p className="font-bold">Verification Status:</p>
-                <p>
-                  {(profile as Therapist).document?.isVerified
-                    ? 'Verified ✓'
-                    : 'Pending Verification'}
-                </p>
-              </div>
-              <div className="mb-4">
-                <p className="font-bold">Specializations:</p>
-                {(profile as Therapist).specializations && (profile as Therapist).specializations.length > 0 ? (
-                  <ul className="list-disc pl-5">
-                    {(profile as Therapist).specializations.map((spec, index) => (
-                      <li key={index}>{spec}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>No specializations specified</p>
-                )}
-              </div>
-            </div>
-          )}
+    const Spinner = () => (
+        <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
+            <p className="text-[#6B7280]">Loading profile…</p>
         </div>
-      </main>
-    </div>
-  );
+    );
+
+    const ErrorPage = ({ msg }: { msg: string }) => (
+        <div className="min-h-screen bg-[#F9FAFB]">
+            <Header />
+            <div className="max-w-md mx-auto mt-20 text-center">
+                <p className="text-red-500 mb-4">{msg}</p>
+                <Link
+                    to="/login"
+                    className="text-[#C66408] font-semibold hover:underline"
+                >
+                    Go to Login
+                </Link>
+            </div>
+        </div>
+    );
+
+    if (loading) return <Spinner />;
+    if (error) return <ErrorPage msg={error} />;
+
+    const isUser = profile && "username" in profile;
+    const displayName = isUser
+        ? (profile as User).username
+        : (profile as Therapist).name;
+    const tags = isUser
+        ? (profile as User).interests || []
+        : (profile as Therapist).specializations || [];
+
+    return (
+        <div className="min-h-screen bg-[#F9FAFB]">
+            <Header />
+            <main className="max-w-2xl mx-auto px-4 py-12">
+                {/* Profile Card */}
+                <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100">
+                    {/* Avatar + name */}
+                    <div className="flex flex-col items-center mb-8">
+                        <img
+                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(displayName || "U")}&background=C66408&color=fff&size=96&rounded=true`}
+                            alt="avatar"
+                            className="w-24 h-24 rounded-full mb-4 shadow-md"
+                        />
+                        <h1 className="text-2xl font-bold text-[#1F2937]">
+                            {displayName}
+                        </h1>
+                        <p className="text-sm text-[#6B7280] mt-1">
+                            {profile?.email}
+                        </p>
+                        {!isUser && (
+                            <span
+                                className={`mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
+                                    (profile as Therapist).document?.isVerified
+                                        ? "bg-green-100 text-green-700"
+                                        : "bg-yellow-100 text-yellow-700"
+                                }`}
+                            >
+                                {(profile as Therapist).document?.isVerified
+                                    ? "✓ Verified"
+                                    : "⏳ Pending Verification"}
+                            </span>
+                        )}
+                    </div>
+
+                    <hr className="border-gray-100 mb-6" />
+
+                    {/* Interests / Specializations */}
+                    <div>
+                        <h2 className="text-sm font-semibold text-[#6B7280] uppercase tracking-wider mb-3">
+                            {isUser ? "Interests" : "Specializations"}
+                        </h2>
+                        {tags.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {tags.map((t) => (
+                                    <span
+                                        key={t}
+                                        className="px-3 py-1 rounded-full text-sm font-medium bg-[#FFEEDB] text-[#C66408]"
+                                    >
+                                        {t}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-[#6B7280]">
+                                None added yet.
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="mt-8 flex justify-center">
+                        <button className="px-6 py-2.5 rounded-lg bg-[#C66408] text-white font-semibold text-sm hover:bg-[#B35C07] transition-colors focus:outline-none focus:ring-2 focus:ring-[#C66408] focus:ring-offset-2">
+                            Edit Profile
+                        </button>
+                    </div>
+                </div>
+
+                {/* Quick nav back home */}
+                <div className="mt-6 text-center">
+                    <Link
+                        to="/"
+                        className="text-sm text-[#6B7280] hover:text-[#C66408] transition-colors"
+                    >
+                        ← Back to Home
+                    </Link>
+                </div>
+            </main>
+        </div>
+    );
 };
 
-const ProfilePage: React.FC = () => {
-  return (
+const ProfilePage: React.FC = () => (
     <ProtectedRoute>
-      <ProfileContent />
+        <ProfileContent />
     </ProtectedRoute>
-  );
-};
+);
 
-export default ProfilePage; 
+export default ProfilePage;

@@ -1,123 +1,122 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import Header from '../components/Header';
-import axios from 'axios';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Header from "../components/Header";
+
+const MOOD_EMOJIS = ["😞", "😔", "😐", "🙂", "😊", "😄"];
+
+const ActionCard: React.FC<{
+    emoji: string;
+    title: string;
+    description: string;
+    onClick: () => void;
+}> = ({ emoji, title, description, onClick }) => (
+    <button
+        onClick={onClick}
+        className="card-hover text-left w-full bg-white rounded-xl shadow-md p-6 flex items-start gap-4 border border-gray-100 focus:outline-none focus:ring-2 focus:ring-[#C66408]"
+    >
+        <span className="text-3xl">{emoji}</span>
+        <div>
+            <p className="font-semibold text-[#1F2937] text-base">{title}</p>
+            <p className="text-sm text-[#6B7280] mt-1">{description}</p>
+        </div>
+    </button>
+);
 
 const HomePage: React.FC = () => {
-  const navigate = useNavigate();
-  const [apiStatus, setApiStatus] = useState<string>('Checking...');
-  const [statusColor, setStatusColor] = useState<string>('text-yellow-500');
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [userType, setUserType] = useState<string>('');
+    const navigate = useNavigate();
+    const [mood, setMood] = useState(3);
+    const [saved, setSaved] = useState(false);
 
-  // Check if user is logged in
-  useEffect(() => {
-    const checkLoginStatus = () => {
-      const userString = localStorage.getItem('user');
-      if (userString) {
-        try {
-          const userData = JSON.parse(userString);
-          if (userData.token) {
-            setIsLoggedIn(true);
-            setUserType(userData.userType || '');
-          }
-        } catch (error) {
-          console.error('Error parsing user data:', error);
-          localStorage.removeItem('user');
-        }
-      }
+    useEffect(() => {
+        const u = localStorage.getItem("user");
+        if (!u) navigate("/login");
+    }, [navigate]);
+
+    const handleSave = () => {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
     };
 
-    checkLoginStatus();
-  }, []);
+    const emojiIndex = Math.min(
+        Math.floor((mood / 10) * MOOD_EMOJIS.length),
+        MOOD_EMOJIS.length - 1,
+    );
 
-  // Check API connectivity on component mount
-  useEffect(() => {
-    const checkApiStatus = async () => {
-      try {
-        const response = await fetch('http://localhost:3000/');
-        if (response.ok) {
-          const text = await response.text();
-          setApiStatus(`Connected: ${text}`);
-          setStatusColor('text-green-500');
-        } else {
-          setApiStatus(`Error: ${response.status} ${response.statusText}`);
-          setStatusColor('text-red-500');
-        }
-      } catch (error) {
-        console.error('API check error:', error);
-        setApiStatus(`Connection failed: ${error instanceof Error ? error.message : String(error)}`);
-        setStatusColor('text-red-500');
-      }
-    };
+    return (
+        <div className="min-h-screen bg-[#F9FAFB]">
+            <Header />
 
-    checkApiStatus();
-  }, []);
+            <main className="max-w-2xl mx-auto px-4 py-12">
+                {/* Greeting */}
+                <div className="text-center mb-10">
+                    <h1 className="text-3xl font-bold text-[#1F2937] mb-2">
+                        How are you feeling today?
+                    </h1>
+                    <p className="text-[#6B7280] text-sm">
+                        Take a moment to check in with yourself.
+                    </p>
+                </div>
 
-  return (
-    <div>
-      <Header />
-      <main className="container mx-auto my-8">
-        <div className="flex flex-col items-center text-center">
-          <h1 className="text-2xl font-bold mb-4">Welcome to Therapy Connect</h1>
-          <p className="mb-6">
-            A platform connecting individuals with professional therapists
-          </p>
-          
-          <div className={`mb-6 font-bold ${statusColor}`}>
-            <p>Backend API Status: {apiStatus}</p>
-          </div>
+                {/* Mood Slider Card */}
+                <div className="bg-white rounded-xl shadow-md p-8 mb-8 border border-gray-100">
+                    <div className="flex justify-between text-xs text-[#6B7280] mb-3 px-1">
+                        <span>Very low</span>
+                        <span>Neutral</span>
+                        <span>Very positive</span>
+                    </div>
 
-          {isLoggedIn ? (
-            <div className="flex flex-col gap-4">
-              <p className="mb-4">You are logged in as a {userType}.</p>
-              <Link
-                to="/profile"
-                className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded"
-              >
-                Go to Profile
-              </Link>
-              <button
-                onClick={() => {
-                  localStorage.removeItem('user');
-                  setIsLoggedIn(false);
-                  window.location.reload();
-                }}
-                className="bg-red-500 hover:bg-red-600 text-white p-4 rounded"
-              >
-                Logout
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="flex gap-4">
-                <Link
-                  to="/signup/user"
-                  className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded"
-                >
-                  Sign Up as User
-                </Link>
-                <Link
-                  to="/signup/therapist"
-                  className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded"
-                >
-                  Sign Up as Therapist
-                </Link>
-              </div>
-              <div className="mt-4">
-                <p>
-                  Already have an account?{' '}
-                  <Link to="/login" className="text-blue-500">
-                    Login here
-                  </Link>
-                </p>
-              </div>
-            </>
-          )}
+                    <div className="flex items-center gap-4">
+                        <input
+                            type="range"
+                            min={0}
+                            max={10}
+                            value={mood}
+                            onChange={(e) => setMood(Number(e.target.value))}
+                            className="w-full h-3 rounded-full cursor-pointer"
+                        />
+                        <span className="text-4xl select-none">
+                            {MOOD_EMOJIS[emojiIndex]}
+                        </span>
+                    </div>
+
+                    <div className="flex justify-center mt-6">
+                        <button
+                            onClick={handleSave}
+                            className="px-6 py-2 rounded-lg bg-[#C66408] text-white font-semibold hover:bg-[#B35C07] transition-colors focus:outline-none focus:ring-2 focus:ring-[#C66408] focus:ring-offset-2"
+                        >
+                            {saved ? "✓ Saved!" : "Save Check-In"}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Action Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <ActionCard
+                        emoji="🐶"
+                        title="Talk to MITRA"
+                        description="Chat with your companion for support and reflection."
+                        onClick={() => navigate("/pet")}
+                    />
+                    <ActionCard
+                        emoji="📓"
+                        title="Journal"
+                        description="Write your thoughts freely in a private space."
+                        onClick={() => navigate("/journal")}
+                    />
+                    <ActionCard
+                        emoji="✅"
+                        title="Tasks"
+                        description="Set gentle goals and build healthy habits."
+                        onClick={() => navigate("/tasks")}
+                    />
+                </div>
+            </main>
+
+            <footer className="text-center text-xs text-[#6B7280] py-8">
+                &copy; {new Date().getFullYear()} MITRA
+            </footer>
         </div>
-      </main>
-    </div>
-  );
+    );
 };
 
-export default HomePage; 
+export default HomePage;

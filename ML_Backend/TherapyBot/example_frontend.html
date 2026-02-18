@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Therapy Companion</title>
+
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <!-- Cute Rounded Font -->
+        <link
+            href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500&display=swap"
+            rel="stylesheet"
+        />
+
+        <!-- Markdown Renderer -->
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+        <style>
+            body {
+                font-family: "Quicksand", sans-serif;
+            }
+
+            #chat-container::-webkit-scrollbar {
+                width: 8px;
+            }
+            #chat-container::-webkit-scrollbar-thumb {
+                background-color: rgba(0, 0, 0, 0.2);
+                border-radius: 4px;
+            }
+
+            .pet-animation {
+                animation: moveDog 4s ease-in-out infinite;
+            }
+            @keyframes moveDog {
+                0% {
+                    transform: translateY(0);
+                }
+                50% {
+                    transform: translateY(-5px);
+                }
+                100% {
+                    transform: translateY(0);
+                }
+            }
+
+            /* Remove scrollbar for chat container (optional, still scrolls) */
+            .no-scrollbar::-webkit-scrollbar {
+                display: none;
+            }
+            .no-scrollbar {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+        </style>
+    </head>
+
+    <body class="bg-gray-50 min-h-screen flex flex-col">
+        <div class="container mx-auto p-4 max-w-2xl flex flex-col h-screen">
+            <!-- Header -->
+            <div class="flex items-center justify-center mb-6">
+                <h1 class="text-3xl font-bold text-[#C66408]">
+                    Therapy Companion
+                </h1>
+                <span class="text-4xl pet-animation ml-2">🐶</span>
+            </div>
+
+            <!-- Chat Card -->
+            <div
+                class="bg-white rounded-lg shadow-lg p-4 flex flex-col flex-grow"
+            >
+                <div
+                    id="chat-container"
+                    class="overflow-y-auto flex-grow space-y-4 no-scrollbar pb-4"
+                ></div>
+            </div>
+
+            <!-- Chat Form -->
+            <form
+                id="chat-form"
+                class="mt-4 w-full flex gap-2 p-4 bg-white shadow rounded-lg"
+            >
+                <textarea
+                    id="message-input"
+                    rows="1"
+                    class="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C66408] resize-none overflow-y-auto max-h-32"
+                    placeholder="Type your message..."
+                ></textarea>
+
+                <button
+                    type="submit"
+                    class="px-4 py-2 bg-[#C66408] text-white rounded-lg hover:bg-[#B35C07] disabled:bg-gray-400"
+                >
+                    Send
+                </button>
+            </form>
+        </div>
+
+        <script>
+            const sessionId = crypto.randomUUID();
+            // Set the backend API URL. Update if your backend runs elsewhere.
+            const API_URL = window.API_URL || "http://localhost:5000";
+            const messageInput = document.getElementById("message-input");
+            const chatForm = document.getElementById("chat-form");
+            const chatContainer = document.getElementById("chat-container");
+
+            let isLoading = false;
+
+            // Auto expanding textarea
+            messageInput.addEventListener("input", () => {
+                messageInput.style.height = "auto";
+                messageInput.style.height =
+                    Math.min(messageInput.scrollHeight, 128) + "px";
+            });
+
+            // Insert message
+            function appendMessage(content, isUser) {
+                const messageDiv = document.createElement("div");
+
+                messageDiv.className = `
+                    p-4 rounded-lg text-sm break-words
+                    ${isUser ? "bg-[#FFEEDB] ml-auto" : "bg-gray-100 mr-auto"}
+                    max-w-[80%]
+                `;
+
+                messageDiv.innerHTML = marked.parse(content);
+                chatContainer.appendChild(messageDiv);
+
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            // Handle message submit
+            async function handleSubmit(e) {
+                e.preventDefault();
+                if (isLoading || !messageInput.value.trim()) return;
+
+                const message = messageInput.value.trim();
+                messageInput.value = "";
+                messageInput.style.height = "auto";
+
+                isLoading = true;
+
+                appendMessage(message, true);
+
+                try {
+                    const response = await fetch(`${API_URL}/chat`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            message,
+                            sessionId,
+                            userId: "user-1",
+                        }),
+                    });
+
+                    if (!response.ok) throw new Error("Network error");
+
+                    const messageDiv = document.createElement("div");
+                    messageDiv.className =
+                        "p-4 rounded-lg text-sm bg-gray-100 mr-auto max-w-[80%] break-words";
+                    chatContainer.appendChild(messageDiv);
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let currentMessage = "";
+
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split("\n");
+
+                        for (const line of lines) {
+                            if (line.startsWith("data: ")) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    if (data.content) {
+                                        currentMessage += data.content;
+                                        messageDiv.innerHTML =
+                                            marked.parse(currentMessage);
+
+                                        chatContainer.scrollTop =
+                                            chatContainer.scrollHeight;
+                                    }
+                                } catch (e) {
+                                    console.error("Parse error:", e);
+                                }
+                            }
+                        }
+                    }
+                } catch {
+                    appendMessage(
+                        "An error occurred while sending your message.",
+                        false,
+                    );
+                } finally {
+                    isLoading = false;
+                }
+            }
+
+            chatForm.addEventListener("submit", handleSubmit);
+        </script>
+    </body>
+</html>

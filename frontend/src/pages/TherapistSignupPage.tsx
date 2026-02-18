@@ -1,375 +1,302 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import Header from '../components/Header';
-import axios from 'axios';
-import GoogleAuth from '../components/GoogleAuth';
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import axios from "axios";
+import GoogleAuth from "../components/GoogleAuth";
 
 const SPECIALIZATION_OPTIONS = [
-  'Cognitive Behavioral Therapy (CBT)',
-  'Depression',
-  'Anxiety',
-  'Trauma',
-  'PTSD',
-  'Marriage Counseling',
-  'Family Therapy',
-  'Addiction',
-  'Eating Disorders',
-  'Child Psychology',
-  'Grief Counseling',
-  'Stress Management',
+    "Cognitive Behavioral Therapy (CBT)",
+    "Depression",
+    "Anxiety",
+    "Trauma",
+    "PTSD",
+    "Marriage Counseling",
+    "Family Therapy",
+    "Addiction",
+    "Eating Disorders",
+    "Child Psychology",
+    "Grief Counseling",
+    "Stress Management",
 ];
 
 const TherapistSignupPage: React.FC = () => {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    name: '',
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    specializations: [] as string[],
-  });
-  const [document, setDocument] = useState<File | null>(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
+    const navigate = useNavigate();
+    const [formData, setFormData] = useState({
+        name: "",
+        username: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        specializations: [] as string[],
+    });
+    const [docFile, setDocFile] = useState<File | null>(null);
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [checkingAuth, setCheckingAuth] = useState(true);
+    const {
+        name,
+        username,
+        email,
+        password,
+        confirmPassword,
+        specializations,
+    } = formData;
 
-  const { name, username, email, password, confirmPassword, specializations } = formData;
-
-  // Check if user is already logged in
-  useEffect(() => {
-    const checkLoginStatus = () => {
-      const userString = localStorage.getItem('user');
-      if (userString) {
+    useEffect(() => {
         try {
-          const userData = JSON.parse(userString);
-          if (userData.token) {
-            // User is already logged in, redirect to profile
-            navigate('/profile');
-            return;
-          }
-        } catch (error) {
-          // Invalid user data
-          localStorage.removeItem('user');
+            const raw = localStorage.getItem("user");
+            if (raw) {
+                const u = JSON.parse(raw);
+                if (u?.token) {
+                    navigate("/");
+                    return;
+                }
+            }
+        } catch {
+            localStorage.removeItem("user");
         }
-      }
-      setCheckingAuth(false);
+        setCheckingAuth(false);
+    }, [navigate]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    const toggleSpec = (val: string) =>
+        setFormData({
+            ...formData,
+            specializations: specializations.includes(val)
+                ? specializations.filter((s) => s !== val)
+                : [...specializations, val],
+        });
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (password !== confirmPassword) {
+            setError("Passwords do not match");
+            return;
+        }
+        if (!docFile) {
+            setError("Please upload a verification document");
+            return;
+        }
+        setLoading(true);
+        setError("");
+        const fd = new FormData();
+        fd.append("name", name);
+        fd.append("username", username);
+        fd.append("email", email);
+        fd.append("password", password);
+        fd.append("document", docFile);
+        specializations.forEach((s) => fd.append("specializations", s));
+        try {
+            const { data } = await axios.post(
+                "http://localhost:3000/api/therapists",
+                fd,
+                {
+                    headers: { "Content-Type": "multipart/form-data" },
+                },
+            );
+            localStorage.setItem("user", JSON.stringify(data));
+            navigate("/");
+        } catch (err: any) {
+            if (err.request && !err.response) {
+                try {
+                    const fd2 = new FormData();
+                    fd2.append("name", name);
+                    fd2.append("username", username);
+                    fd2.append("email", email);
+                    fd2.append("password", password);
+                    fd2.append("document", docFile);
+                    specializations.forEach((s) =>
+                        fd2.append("specializations", s),
+                    );
+                    const r = await fetch(
+                        "http://localhost:3000/api/therapists",
+                        { method: "POST", body: fd2 },
+                    );
+                    if (r.ok) {
+                        localStorage.setItem(
+                            "user",
+                            JSON.stringify(await r.json()),
+                        );
+                        navigate("/");
+                        return;
+                    }
+                } catch {}
+            }
+            setError(
+                err.response?.data?.message || err.message || "Sign up failed.",
+            );
+        } finally {
+            setLoading(false);
+        }
     };
 
-    checkLoginStatus();
-  }, [navigate]);
+    if (checkingAuth)
+        return (
+            <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
+                <p className="text-[#6B7280]">Loading…</p>
+            </div>
+        );
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSpecializationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (e.target.checked) {
-      setFormData({
-        ...formData,
-        specializations: [...specializations, value],
-      });
-    } else {
-      setFormData({
-        ...formData,
-        specializations: specializations.filter((spec) => spec !== value),
-      });
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setDocument(e.target.files[0]);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (!document) {
-      setError('Please upload a document for verification');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    const formDataToSend = new FormData();
-    formDataToSend.append('name', name);
-    formDataToSend.append('username', username);
-    formDataToSend.append('email', email);
-    formDataToSend.append('password', password);
-    formDataToSend.append('document', document);
-    specializations.forEach((spec) => {
-      formDataToSend.append('specializations', spec);
-    });
-
-    console.log('Submitting therapist signup form with data:', { 
-      name, 
-      username,
-      email, 
-      passwordLength: password.length,
-      documentName: document.name,
-      documentSize: document.size,
-      documentType: document.type,
-      specializations 
-    });
-
-    try {
-      console.log('Making API request to:', 'http://localhost:3000/api/therapists');
-      
-      // Create axios config with appropriate headers
-      const config = {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Accept': 'application/json'
-        },
-        withCredentials: false
-      };
-      
-      const response = await axios.post(
-        'http://localhost:3000/api/therapists',
-        formDataToSend,
-        config
-      );
-      
-      console.log('API Response:', response);
-      localStorage.setItem('user', JSON.stringify(response.data));
-      navigate('/profile');
-    } catch (error: any) {
-      console.error('Registration error details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-        config: error.config,
-        code: error.code
-      });
-      
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        setError(`Server error: ${error.response.data?.message || error.response.statusText || 'Unknown error'}`);
-      } else if (error.request) {
-        // The request was made but no response was received
-        setError('No response from server. Please check your internet connection or try again later.');
-        console.error('Request was made but no response received:', error.request);
-        
-        // Try direct fetch API approach as a fallback
-        console.log('Attempting alternative request with fetch API...');
-        try {
-          const fetchFormData = new FormData();
-          fetchFormData.append('name', name);
-          fetchFormData.append('email', email);
-          fetchFormData.append('password', password);
-          fetchFormData.append('document', document);
-          specializations.forEach((spec) => {
-            fetchFormData.append('specializations', spec);
-          });
-          
-          const fetchResponse = await fetch('http://localhost:3000/api/therapists', {
-            method: 'POST',
-            body: fetchFormData
-          });
-          
-          if (fetchResponse.ok) {
-            const data = await fetchResponse.json();
-            console.log('Fetch API response:', data);
-            localStorage.setItem('user', JSON.stringify(data));
-            navigate('/profile');
-            return;
-          } else {
-            console.error('Fetch API failed with status:', fetchResponse.status);
-            setError(`Server error (fetch): ${fetchResponse.status} ${fetchResponse.statusText}`);
-          }
-        } catch (fetchError) {
-          console.error('Fetch API error:', fetchError);
-        }
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        setError(`Error: ${error.message || 'Unknown error'}`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (checkingAuth) {
     return (
-      <div>
-        <Header />
-        <main className="container mx-auto my-8 text-center">
-          <p>Checking authentication status...</p>
-        </main>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <Header />
-      <main className="container mx-auto my-8">
-        <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
-          <h1 className="text-xl font-bold mb-6 text-center">Sign Up as Therapist</h1>
-          
-          {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
-          
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label htmlFor="name" className="block mb-2">
-                Full Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={name}
-                onChange={handleChange}
-                className="w-full p-2 border border-gray-300 rounded"
-                required
-              />
-            </div>
-            
-            <div className="mb-4">
-              <label htmlFor="username" className="block mb-2">
-                Username
-              </label>
-              <input
-                type="text"
-                id="username"
-                name="username"
-                value={username}
-                onChange={handleChange}
-                className="w-full p-2 border border-gray-300 rounded"
-                required
-              />
-              <small className="text-gray-500">
-                Choose a unique username. This will be used to identify you on the platform.
-              </small>
-            </div>
-            
-            <div className="mb-4">
-              <label htmlFor="email" className="block mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={email}
-                onChange={handleChange}
-                className="w-full p-2 border border-gray-300 rounded"
-                required
-              />
-            </div>
-
-            <div className="mb-4">
-              <label htmlFor="password" className="block mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={password}
-                onChange={handleChange}
-                className="w-full p-2 border border-gray-300 rounded"
-                required
-              />
-            </div>
-
-            <div className="mb-4">
-              <label htmlFor="confirmPassword" className="block mb-2">
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={confirmPassword}
-                onChange={handleChange}
-                className="w-full p-2 border border-gray-300 rounded"
-                required
-              />
-            </div>
-
-            <div className="mb-4">
-              <label htmlFor="document" className="block mb-2">
-                Verification Document (PDF, DOC, DOCX)
-              </label>
-              <input
-                type="file"
-                id="document"
-                name="document"
-                accept=".pdf,.doc,.docx"
-                onChange={handleFileChange}
-                className="w-full p-2 border border-gray-300 rounded"
-                required
-              />
-              <small className="text-gray-500">
-                Please upload a document to verify your credentials as a therapist
-              </small>
-            </div>
-
-            <div className="mb-4">
-              <label className="block mb-2">Specializations</label>
-              <div className="grid grid-cols-2 gap-2">
-                {SPECIALIZATION_OPTIONS.map((specialization) => (
-                  <div key={specialization}>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        name="specializations"
-                        value={specialization}
-                        checked={specializations.includes(specialization)}
-                        onChange={handleSpecializationChange}
-                        className="mr-2"
-                      />
-                      {specialization}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded"
-              disabled={loading}
+        <div className="min-h-screen bg-[#F9FAFB] flex flex-col items-center justify-center px-4 py-12">
+            <Link
+                to="/"
+                className="text-3xl font-bold text-[#C66408] mb-8 tracking-tight select-none"
             >
-              {loading ? 'Signing up...' : 'Sign Up'}
-            </button>
-          </form>
+                MITRA
+            </Link>
 
-          {/* Google Authentication */}
-          <GoogleAuth mode="signup" userType="therapist" />
+            <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 border border-gray-100">
+                <h2 className="text-xl font-bold text-[#1F2937] mb-6 text-center">
+                    Join as a Therapist
+                </h2>
 
-          {/* Debugging info */}
-          <div className="mt-4 text-xs text-gray-400 text-center">
-            <p>Current URL: {window.location.href}</p>
-            <p>If you see OAuth errors, make sure this URL is in your Google Console</p>
-          </div>
+                {error && (
+                    <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-600 text-sm text-center">
+                        {error}
+                    </div>
+                )}
 
-          <div className="mt-4 text-center">
-            <p>
-              Already have an account?{' '}
-              <Link to="/login" className="text-blue-500">
-                Login
-              </Link>
-            </p>
-          </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {[
+                        {
+                            label: "Full Name",
+                            name: "name",
+                            type: "text",
+                            value: name,
+                            placeholder: "Dr. Jane Smith",
+                        },
+                        {
+                            label: "Username",
+                            name: "username",
+                            type: "text",
+                            value: username,
+                            placeholder: "Unique username",
+                        },
+                        {
+                            label: "Email",
+                            name: "email",
+                            type: "email",
+                            value: email,
+                            placeholder: "you@example.com",
+                        },
+                        {
+                            label: "Password",
+                            name: "password",
+                            type: "password",
+                            value: password,
+                            placeholder: "••••••••",
+                        },
+                        {
+                            label: "Confirm Password",
+                            name: "confirmPassword",
+                            type: "password",
+                            value: confirmPassword,
+                            placeholder: "••••••••",
+                        },
+                    ].map(({ label, name: n, type, value, placeholder }) => (
+                        <div key={n}>
+                            <label
+                                className="block text-sm font-semibold text-[#1F2937] mb-1"
+                                htmlFor={n}
+                            >
+                                {label}
+                            </label>
+                            <input
+                                type={type}
+                                id={n}
+                                name={n}
+                                value={value}
+                                onChange={handleChange}
+                                required
+                                placeholder={placeholder}
+                                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#C66408]"
+                            />
+                        </div>
+                    ))}
+
+                    {/* Specializations */}
+                    <div>
+                        <p className="block text-sm font-semibold text-[#1F2937] mb-2">
+                            Specializations
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {SPECIALIZATION_OPTIONS.map((s) => (
+                                <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => toggleSpec(s)}
+                                    className={`px-3 py-1 rounded-full text-sm font-medium border transition-colors focus:outline-none ${
+                                        specializations.includes(s)
+                                            ? "bg-[#C66408] text-white border-[#C66408]"
+                                            : "bg-white text-[#6B7280] border-gray-300 hover:border-[#C66408] hover:text-[#C66408]"
+                                    }`}
+                                >
+                                    {s}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Document upload */}
+                    <div>
+                        <label
+                            className="block text-sm font-semibold text-[#1F2937] mb-1"
+                            htmlFor="document"
+                        >
+                            Verification Document
+                        </label>
+                        <input
+                            type="file"
+                            id="document"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) =>
+                                setDocFile(e.target.files?.[0] ?? null)
+                            }
+                            className="w-full text-sm text-[#6B7280] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#FFEEDB] file:text-[#C66408] hover:file:bg-[#f5dfc4]"
+                            required
+                        />
+                        <p className="text-xs text-[#6B7280] mt-1">
+                            Upload your license or certification (PDF, JPG,
+                            PNG).
+                        </p>
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full py-2.5 rounded-lg bg-[#C66408] text-white font-semibold text-sm hover:bg-[#B35C07] transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#C66408] focus:ring-offset-2"
+                    >
+                        {loading
+                            ? "Creating account…"
+                            : "Create Therapist Account"}
+                    </button>
+                </form>
+
+                <GoogleAuth mode="signup" userType="therapist" />
+
+                <p className="mt-6 text-center text-sm text-[#6B7280]">
+                    Already have an account?{" "}
+                    <Link
+                        to="/login"
+                        className="text-[#C66408] font-semibold hover:underline"
+                    >
+                        Login
+                    </Link>
+                </p>
+                <p className="mt-2 text-center text-sm text-[#6B7280]">
+                    Looking for user signup?{" "}
+                    <Link
+                        to="/signup/user"
+                        className="text-[#C66408] font-semibold hover:underline"
+                    >
+                        Sign up as User
+                    </Link>
+                </p>
+            </div>
         </div>
-      </main>
-    </div>
-  );
+    );
 };
 
-export default TherapistSignupPage; 
+export default TherapistSignupPage;
