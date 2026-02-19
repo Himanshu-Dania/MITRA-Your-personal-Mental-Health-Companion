@@ -8,6 +8,10 @@ const jwt = require('jsonwebtoken');
 const userRoutes = require('./src/routes/userRoutes');
 const therapistRoutes = require('./src/routes/therapistRoutes');
 const googleAuthRoutes = require('./routes/googleAuthRoutes');
+const conversationRoutes = require('./src/routes/conversationRoutes');
+const taskRoutes = require('./src/routes/taskRoutes');
+const memoryRoutes = require('./src/routes/memoryRoutes');
+const journalRoutes = require('./src/routes/journalRoutes');
 
 // Connect to database
 connectDB();
@@ -95,6 +99,10 @@ if (process.env.NODE_ENV === 'development') {
 app.use('/api/users', userRoutes);
 app.use('/api/therapists', therapistRoutes);
 app.use('/api/auth/google', googleAuthRoutes);
+app.use('/api/conversations', conversationRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/memories', memoryRoutes);
+app.use('/api/journals', journalRoutes);
 
 // Options for preflight requests
 app.options('*', cors());

@@ -34,7 +34,6 @@ from RAG.retreive_books import query_retriever
 from EmotionBot.bot import emotion_detection
 from StrategyBot.bot import predict_therapy_strategy
 from TherapyBot.utils import (
-    _decode_thread_id,
     _extract_config_dict,
     is_probably_json,
     system_prompt,
@@ -127,20 +126,45 @@ def get_taskbot_instance() -> Taskbot:
 
 # try making tool runnable? or maybe by customstate or just prompt bs
 @tool("save_memory_to_db")
-def save_memory_to_db(memory: str, thread_id: str):
-    """Save a specific user memory into the database."""
+def save_memory_to_db(
+    memory: str,
+    conversation_id: str,
+    user_id: str,
+    memory_type: str = "info",
+):
+    """Persist a piece of information about the user that should be remembered across sessions.
 
-    user_id, session_id = _decode_thread_id(thread_id)
+    Call this when the user reveals something lasting and personal, for example:
+    - biographical facts (name, age, occupation, family situation)
+    - recurring struggles or diagnoses they have mentioned
+    - strong preferences or dislikes they have expressed
+    - goals they have shared
 
-    if get_task_debug():  # Reusing task_debug for all tool debug logs
-        print(f"[DB MEMORY SAVE] User: {user_id}, Session: {session_id}")
-        print(f"[DB MEMORY SAVE] Summary Saved: {memory[:200]}...")
+    Use memory_type="instruct" for explicit preferences about how the assistant should behave
+    (e.g. "user prefers short replies", "user does not want homework tasks").
+    Use memory_type="info" (default) for all factual or biographical memories.
+
+    Do NOT call this for transient feelings or one-off statements that are not worth keeping
+    long-term.
+    """
+
+    if get_task_debug():
+        print(f"[DB MEMORY SAVE] User: {user_id}, type={memory_type}, conv: {conversation_id}")
+        print(f"[DB MEMORY SAVE] Content: {memory[:200]}...")
+
+    try:
+        from db_client import save_memory
+        save_memory(user_id, conversation_id, memory, memory_type=memory_type)
+    except Exception as e:
+        if get_task_debug():
+            print(f"[DB MEMORY SAVE] DB error: {e}")
 
     return {
         "status": "success",
         "memory": memory,
+        "memory_type": memory_type,
         "user_id": user_id,
-        "session_id": session_id,
+        "conversation_id": conversation_id,
     }
 
 
@@ -164,25 +188,28 @@ def _clean_json_response(response: str) -> str:
 
 
 @tool("create_therapy_task")
-async def create_therapy_task(reason_for_task_creation: str, thread_id: str):
+async def create_therapy_task(reason_for_task_creation: str, conversation_id: str, user_id: str):
     """Create a therapy-related task for the user, based on the given reason.
     This tool uses TaskBot to generate personalized therapy tasks that avoid redundancy
     and are tailored to the user's needs."""
 
-    user_id, session_id = _decode_thread_id(thread_id)
-
     if get_task_debug():
         print(
-            f"[THERAPY TASK] New Task Creation Started for User {user_id}, Session {session_id}"
+            f"[THERAPY TASK] New Task Creation Started for User {user_id}, Conversation {conversation_id}"
         )
         print(f"[THERAPY TASK] Reason: {reason_for_task_creation}")
 
     # Get shared TaskBot instance
     taskbot = get_taskbot_instance()
 
-    # TODO: Fetch existing tasks for this user from database
-    # For now, using empty list - you should replace this with actual DB query
-    existing_tasks = []  # Replace with: await get_user_tasks(user_id, session_id)
+    # Fetch existing tasks so TaskBot can avoid redundancy and calibrate difficulty
+    try:
+        from db_client import get_user_tasks
+        existing_tasks = get_user_tasks(user_id)
+    except Exception as e:
+        if get_task_debug():
+            print(f"[THERAPY TASK] Could not fetch existing tasks: {e}")
+        existing_tasks = []
 
     try:
         # Call TaskBot to create the task
@@ -226,6 +253,19 @@ async def create_therapy_task(reason_for_task_creation: str, thread_id: str):
                 f"[THERAPY TASK] Task Data: {json.dumps(task_data, indent=2)[:300]}..."
             )
 
+        # Persist task(s) to MongoDB
+        try:
+            from db_client import save_task
+            if isinstance(task_data, dict):
+                save_task(user_id, conversation_id, task_data)
+            elif isinstance(task_data, list):
+                for td in task_data:
+                    if isinstance(td, dict):
+                        save_task(user_id, conversation_id, td)
+        except Exception as e:
+            if get_task_debug():
+                print(f"[THERAPY TASK] DB save error: {e}")
+
         # Format a user-friendly response string instead of returning raw dict
         # This prevents the agent from echoing the entire JSON structure
         if isinstance(task_data, dict):
@@ -251,10 +291,9 @@ async def create_therapy_task(reason_for_task_creation: str, thread_id: str):
         # Store full task data for potential later use (e.g., saving to DB)
         # You can access this via a getter function if needed
         if get_task_debug():
-            # Store in a simple dict for debugging (in production, save to DB)
             if not hasattr(create_therapy_task, "_task_store"):
                 create_therapy_task._task_store = {}
-            create_therapy_task._task_store[f"{user_id}_{session_id}"] = {
+            create_therapy_task._task_store[f"{user_id}_{conversation_id}"] = {
                 "status": "success",
                 "created_task": task_data,
                 "reason_for_task_creation": reason_for_task_creation,
@@ -364,15 +403,14 @@ Include ONLY:
 
         print("Agent initialized.\n")
 
-    async def chat(self, query: str, session_id: int, user_id: int):
-        thread_id = f"{user_id}_{session_id}"
+    async def chat(self, query: str, conversation_id: str, user_id: str):
+        thread_id = conversation_id
 
         # retrieve full or partial history (from checkpointer)
         config = RunnableConfig(
             configurable={
                 "thread_id": thread_id,
                 "user_id": user_id,
-                "session_id": session_id,
             }
         )
         checkpoint = self.agent.checkpointer.get(config)
@@ -395,20 +433,20 @@ Include ONLY:
         emotion_task = asyncio.create_task(emotion_detection(query))
         strategy_task = asyncio.create_task(predict_therapy_strategy(recent_msgs))
 
-        emotion_result, strategy_result, rag_docs = await asyncio.gather(
+        emotion_result, strategy_result, rag_result = await asyncio.gather(
             emotion_task, strategy_task, rag_docs_task
         )
-        # emotion_result,rag_docs = (["neutral"], ["", ""])
-        # strategy_result=("reason", [])
+        combined_context, rag_sources = rag_result  # (str, List[str])
+
         if self.query_debug:
             print(
-                f"Received the intermediate inputs {emotion_result}, {strategy_result}, {rag_docs[0]}"
+                f"Received the intermediate inputs {emotion_result}, {strategy_result}"
             )
+            print(f"RAG sources: {rag_sources}")
         reasoning, strategy_list = strategy_result
-        # combined_context = "\n\n".join([doc.page_content for doc in rag_docs])
-        combined_context = ""
 
         response = ""
+        tool_events: list = []  # accumulate tool calls made this turn
         attempts, successful, last_exception = 0, False, None
 
         while attempts < self.retry_count and not successful:
@@ -424,7 +462,7 @@ Include ONLY:
                 **Reasoning for strategy:** {reasoning}
                 **Predicted Strategy:** {strategy_list}
 
-                Use these details if you need to call tools :- thread_id: {thread_id}
+                Use these details if you need to call tools :- conversation_id: {conversation_id}, user_id: {user_id}
                 """
 
                 inside_json_block = False  # NEW STATE FLAG
@@ -450,12 +488,21 @@ Include ONLY:
                             continue
 
                     # -------------------------------
-                    # 2. Skip tool call metadata
+                    # 2. Capture + skip tool call metadata
                     # -------------------------------
                     if getattr(token, "tool_calls", None):
+                        for tc in token.tool_calls:
+                            if tc.get("name"):  # only complete (non-chunk) entries
+                                tool_events.append(
+                                    {
+                                        "name": tc.get("name"),
+                                        "args": tc.get("args", {}),
+                                        "id": tc.get("id"),
+                                    }
+                                )
                         if self.agent_debug:
                             print(
-                                f"[TOKEN DEBUG] Filtered: tool_calls found: {token.tool_calls}"
+                                f"[TOKEN DEBUG] Captured tool_calls: {token.tool_calls}"
                             )
                         continue
 
@@ -467,12 +514,17 @@ Include ONLY:
                         continue
 
                     # -------------------------------
-                    # 3. Skip tool result messages
+                    # 3. Capture tool result + skip from stream
                     # -------------------------------
-                    if hasattr(token, "tool_call_id"):
+                    if hasattr(token, "tool_call_id") and getattr(token, "tool_call_id", None):
+                        tc_id = token.tool_call_id
+                        tc_content = getattr(token, "content", "")
+                        for ev in tool_events:
+                            if ev.get("id") == tc_id:
+                                ev["result"] = tc_content
                         if self.agent_debug:
                             print(
-                                f"[TOKEN DEBUG] Filtered: tool_call_id found: {token.tool_call_id}"
+                                f"[TOKEN DEBUG] Captured tool result id={tc_id}"
                             )
                         continue
 
@@ -559,10 +611,19 @@ Include ONLY:
                 print(f"Error on attempt {attempts}: {e}")
                 await asyncio.sleep(2**attempts)
         if self.checkpoint_debug:
-            self.debug_agent(user_id, session_id)
-        # print(f"Response: {response}")
+            self.debug_agent(user_id, conversation_id)
         if not successful:
             raise Exception("Failed after retries.") from last_exception
+
+        # Yield metadata so app.py can persist the turn and forward tool events
+        yield {
+            "__metadata__": {
+                "emotions": emotion_result,
+                "strategies": strategy_list,
+                "tool_events": tool_events,
+                "rag_sources": rag_sources,
+            }
+        }
 
         # # Trigger tool usage if context suggests
         # if "save memory" in response.lower():
@@ -581,8 +642,8 @@ Include ONLY:
         #         reason_for_task_creation=f"Suggested by conversation: {response[:150]}",
         #     )
 
-    def debug_agent(self, user_id: int, session_id: int):
-        thread_id = f"{user_id}_{session_id}"
+    def debug_agent(self, user_id: str, conversation_id: str):
+        thread_id = conversation_id
         config = RunnableConfig(
             configurable={"thread_id": thread_id, "user_id": user_id}
         )
@@ -616,7 +677,7 @@ if __name__ == "__main__":
                 break
             print(">> Pet: ")
             response = ""
-            async for res in bot.chat(query, 10, 123):
+            async for res in bot.chat(query, "test-conversation-id", "test-user-id"):
                 response += res
                 print(res, end="")
 

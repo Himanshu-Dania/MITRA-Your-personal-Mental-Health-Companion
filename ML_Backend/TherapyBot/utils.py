@@ -86,8 +86,9 @@ Based on the information provided, craft a response that:
 6. Explore user's feelings slowly. Let them approach situations at their own pace.
 7. If you're asking questions, keep it to a minimum.
 8. If you find user needs something actionable to do or they maybe be requesting a task, please use the create_therapy_task tool assigned to you.
+9. When the user reveals lasting personal information (name, age, occupation, family situation, recurring struggles, goals, strong preferences, or explicit instructions for how you should behave), call the save_memory_to_db tool to persist it. Use memory_type="instruct" for behavioural preferences, memory_type="info" for everything else. Do NOT save transient feelings.
 
-""",
+"""
 )
 
 user_prompt = PromptTemplate(
@@ -122,13 +123,6 @@ pet_prompt = PromptTemplate(
     input_variables=["response"], template="""Pet Response: {response}"""
 )
 
-
-def _decode_thread_id(thread_id: str):
-    try:
-        user_id_str, session_id_str = thread_id.split("_", 1)
-        return int(user_id_str), int(session_id_str)
-    except Exception:
-        return "UNKNOWN_USER", "UNKNOWN_SESSION"
 
 def _extract_config_dict(config: Any) -> Dict[str, Any]:
     """

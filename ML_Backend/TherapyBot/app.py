@@ -1,12 +1,12 @@
 from flask import Flask, Response, request, jsonify
 from flask_cors import CORS
 import json
+import threading
 
 # from chatbot_stream import Chatbot
 from agent_stream import TherapyAgent
 import os
 import asyncio
-import threading
 from queue import Queue
 from functools import partial
 import logging
@@ -30,6 +30,51 @@ CORS(app, resources={
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# DB persistence helper (runs in a background thread after streaming ends)
+# ---------------------------------------------------------------------------
+
+def _save_conversation_to_db(
+    user_id: str,
+    conversation_id: str,
+    user_message: str,
+    bot_response: str,
+    metadata: dict,
+):
+    """Persist user + companion messages after a chat turn completes."""
+    try:
+        from db_client import ensure_conversation, save_message
+
+        ensure_conversation(user_id, conversation_id, user_message)
+
+        # User message (no metadata)
+        save_message(conversation_id, "user", user_message)
+
+        # Companion message with captured metadata
+        emotions     = metadata.get("emotions", [])
+        strategies   = metadata.get("strategies", [])
+        tool_events  = metadata.get("tool_events", [])
+        rag_sources  = metadata.get("rag_sources", [])
+        # Store as { toolName: {name, args, result} } for easy lookup in frontend
+        tool_calls_obj = (
+            {ev.get("name"): ev for ev in tool_events if ev.get("name")}
+            if tool_events
+            else {}
+        )
+        save_message(
+            conversation_id,
+            "companion",
+            bot_response,
+            emotion=emotions,
+            strategy_used=strategies,
+            tool_calls=tool_calls_obj,
+            rag_sources=rag_sources,
+        )
+        logger.info("[DB] Saved turn for user=%s conversation=%s", user_id, conversation_id)
+    except Exception as exc:
+        logger.error("[DB] Failed to save conversation turn: %s", exc)
+
 # Create a single instance of Chatbot
 chatbot = TherapyAgent(task_debug=True, agent_debug=False)
 
@@ -48,12 +93,15 @@ def run_in_loop(coroutine):
         raise
 
 
-async def process_chat_async(message, session_id, user_id, queue):
+async def process_chat_async(message, conversation_id, user_id, queue, metadata_holder):
     """Process chat messages asynchronously"""
     try:
-        async for chunk in chatbot.chat(message, session_id, user_id):
+        async for chunk in chatbot.chat(message, conversation_id, user_id):
             await asyncio.sleep(0)  # Give other tasks a chance to run
-            queue.put(chunk)
+            if isinstance(chunk, dict) and "__metadata__" in chunk:
+                metadata_holder.update(chunk["__metadata__"])
+            else:
+                queue.put(chunk)
     except Exception as e:
         logger.error(f"Error in chat processing: {e}", exc_info=True)
         queue.put({"error": str(e)})
@@ -61,13 +109,15 @@ async def process_chat_async(message, session_id, user_id, queue):
         queue.put(None)  # Signal completion
 
 
-def generate_response(message, session_id, user_id):
+def generate_response(message, conversation_id, user_id):
     queue = Queue()
+    metadata_holder: dict = {}
+    full_response: list = []
 
     # Start process_chat_async in a separate thread to fill the queue concurrently.
     threading.Thread(
         target=run_in_loop,
-        args=(process_chat_async(message, session_id, user_id, queue),),
+        args=(process_chat_async(message, conversation_id, user_id, queue, metadata_holder),),
         daemon=True,
     ).start()
 
@@ -78,7 +128,26 @@ def generate_response(message, session_id, user_id):
         if isinstance(chunk, dict) and "error" in chunk:
             yield f"data: {json.dumps({'error': chunk['error']})}\n\n"
             break
+        full_response.append(chunk)
         yield f"data: {json.dumps({'content': chunk})}\n\n"
+
+    # Forward tool events to the client as a special SSE frame
+    tool_events = metadata_holder.get("tool_events", [])
+    if tool_events:
+        yield f"data: {json.dumps({'toolEvents': tool_events})}\n\n"
+
+    # Persist the full turn to MongoDB in a background thread
+    threading.Thread(
+        target=_save_conversation_to_db,
+        args=(
+            user_id,
+            conversation_id,
+            message,
+            "".join(full_response),
+            metadata_holder,
+        ),
+        daemon=True,
+    ).start()
 
 
 @app.route("/")
@@ -106,37 +175,31 @@ def health():
 def chat():
     """
     Chat endpoint - streams responses via Server-Sent Events
-    
+
     Expects JSON body:
     {
         "message": str,
-        "sessionId": str|int,
+        "conversationId": str,   -- MongoDB _id of the conversation
         "userId": str|int
     }
-    
+
     Returns: text/event-stream with JSON chunks
-    
-    Future: Add authentication by checking Authorization header:
-    # auth_header = request.headers.get('Authorization')
-    # if auth_header and auth_header.startswith('Bearer '):
-    #     token = auth_header.split(' ')[1]
-    #     # Validate token here
     """
     try:
         data = request.json
         message = data.get("message")
-        session_id = data.get("sessionId") or 0
-        user_id = data.get("userId") or 0
+        conversation_id = data.get("conversationId")
+        user_id = data.get("userId")
 
-        if not message or not session_id:
-            return jsonify({"error": "Missing required fields"}), 400
+        if not message or not conversation_id:
+            return jsonify({"error": "Missing required fields: message and conversationId"}), 400
 
         return Response(
-            generate_response(message, session_id, user_id),
+            generate_response(message, conversation_id, user_id),
             mimetype="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
-                "X-Accel-Buffering": "no",  # Disable nginx buffering if you're using it
+                "X-Accel-Buffering": "no",
                 "Connection": "keep-alive",
             },
         )
